@@ -1,5 +1,5 @@
 import streamlit as st
-import openai as OpenAI
+from openai import OpenAI
 
 st.title('My LAB3 Question Answering chatbox')
 
@@ -39,4 +39,3 @@ if prompt := st.chat_input("What is up?"):
         response = st.write_stream(stream)
 
     st.session_state.messages.append({"role":"assisnant", "content":response})
-    
