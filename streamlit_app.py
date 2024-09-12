@@ -1,41 +1,16 @@
 import streamlit as st
-import os
+from streamlit import session_state as state
 
-# Sidebar with buttons for navigation
-st.sidebar.title("Navigation")
-home_button = st.sidebar.button("Home")
-lab1_button = st.sidebar.button("LAB1")
-lab2_button = st.sidebar.button("LAB2")
+# Define individual pages for homework 1 and homework 2
+lab3_page = st.Page("LAB3.py", title="Lab 3")
+lab2_page = st.Page("LAB2.py", title="Lab 2")
+lab1_page = st.Page("LAB1.py", title="Lab 1")
 
-# Initialize a default page (Home) to be shown if no button is clicked yet
-if 'page' not in st.session_state:
-    st.session_state.page = 'LAB2'
+# Initialize navigation with the pages
+pg = st.navigation([lab3_page,lab2_page, lab1_page])
 
-# Update page state based on button clicks
-if home_button:
-    st.session_state.page = 'Home'
-elif lab1_button:
-    st.session_state.page = 'LAB1'
-elif lab2_button:
-    st.session_state.page = 'LAB2'
+# Set page configuration (optional but helps with page title and icon)
+st.set_page_config(page_title="Lab Manager", page_icon=":memo:")
 
-# Display the appropriate content based on the current page
-if st.session_state.page == 'Home':
-    st.title("Welcome to my labs")
-    st.write("You can see my labs here.")
-elif st.session_state.page == 'LAB1':
-    st.title("LAB1")
-    if os.path.exists('LAB1.py'):
-        with open('LAB1.py') as f:
-            code = f.read()
-            exec(code)  # Executes the LAB1.py code
-    else:
-        st.error("LAB1.py file not found.")
-elif st.session_state.page == 'LAB2':
-    st.title("LAB2")
-    if os.path.exists('LAB2.py'):
-        with open('LAB2.py') as f:
-            code = f.read()
-            exec(code)  # Executes the LAB2.py code
-    else:
-        st.error("LAB2.py file not found.")
+# Run the navigation system
+pg.run()
