@@ -1,6 +1,5 @@
 import streamlit as st
 from openai import OpenAI
-
 st.title('My LAB3 Question Answering chatbox')
 
 openAImodel = st.sidebar.selectbox("Which model?", ("mini", "regular"))
@@ -39,3 +38,7 @@ if prompt := st.chat_input("What is up?"):
         response = st.write_stream(stream)
 
     st.session_state.messages.append({"role":"assistant", "content":response})
+
+    # Keep only the last two messages in memory for the API
+    if len(st.session_state["messages"]) > 2:
+        st.session_state.messages.append({"role": "user", "content": prompt})
