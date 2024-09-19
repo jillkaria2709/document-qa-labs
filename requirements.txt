@@ -1,4 +1,5 @@
 streamlit
 openai
 chromadb
-PyPDF2 
+PyPDF2
+protobuf==3.20.3
