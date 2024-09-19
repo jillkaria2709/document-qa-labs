@@ -1,2 +1,4 @@
 streamlit
 openai
+chromadb
+PyPDF2 
