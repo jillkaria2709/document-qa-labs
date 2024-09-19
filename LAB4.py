@@ -4,9 +4,6 @@ from PyPDF2 import PdfFileReader
 import os
 from chromadb import Client  # Ensure to use the correct import based on the library's documentation
 
-import os
-os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-
 __import__('pysqlite3')
 import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
