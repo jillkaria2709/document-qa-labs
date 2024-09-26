@@ -6,7 +6,7 @@ from PyPDF2 import PdfReader
 import os
 import toml
 
-_import_('pysqlite3')
+__import__('pysqlite3')
 import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
