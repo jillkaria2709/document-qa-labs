@@ -1,112 +1,115 @@
 import streamlit as st
 from openai import OpenAI
-from PyPDF2 import PdfFileReader
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+import chromadb
+from chromadb.utils import embedding_functions
+import PyPDF2
 import os
-from chromadb import Client  # Ensure to use the correct import based on the library's documentation
 
-# Optional: Handle pysqlite3 import if needed
-try:
-    __import__('pysqlite3')
-    import sys
-    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
-except ImportError:
-    st.error("pysqlite3 package is not available. Please install it to resolve SQLite issues.")
+client = OpenAI(api_key=st.secrets["openai_key"])
 
-st.title('My LAB3 Question Answering Chatbox')
+def create_chromadb_collection(pdf_files):
+    if 'HW4' not in st.session_state:
+        # Initialize ChromaDB client with persistent storage
+        client = chromadb.PersistentClient()
+        st.session_state.HW4 = client.get_or_create_collection(name="HW4_collection")
+        
+        # Set up OpenAI embedding function
+        openai_embedder = embedding_functions.OpenAIEmbeddingFunction(api_key=st.secrets["openai_key"], model_name="text-embedding-3-small")
+        
+        # Loop through provided PDF files, convert to text, and add to the vector database
+        for file in pdf_files:
+            try:
+                # Read PDF file and extract text
+                pdf_text = ""
+                pdf_reader = PyPDF2.PdfReader(file)
+                for page in pdf_reader.pages:
+                    pdf_text += page.extract_text()
+                
+                # Add document to ChromaDB collection with embeddings
+                st.session_state.HW4.add(
+                    documents=[pdf_text],
+                    metadatas=[{"filename": file.name}],
+                    ids=[file.name]
+                )
+            except Exception as e:
+                st.error(f"Error processing {file.name}: {e}")
+        
+        st.success("ChromaDB has been created!")
 
-openAImodel = st.sidebar.selectbox("Which model?", ("mini", "regular"))
-buffer_size = st.sidebar.slider("Buffer Size", min_value=1, max_value=10, value=2, step=1)
+# Function to query the vector database and get relevant context
+def get_relevant_context(query):
+    if 'HW4' in st.session_state:
+        results = st.session_state.HW4.query(
+            query_texts=[query],
+            n_results=5,
+            include=["documents", "metadatas"]
+        )
+        
+        context = ""
+        for doc, metadata in zip(results['documents'][0], results['metadatas'][0]):
+            new_context = f"From document '{metadata['filename']}':\n{doc}\n\n"
+            context += new_context
+        
+        return context
+    return ""
 
-model_to_use = "gpt-4o-mini" if openAImodel == "mini" else "gpt-4o"
-
-if 'client' not in st.session_state:
-    api_key = st.secrets.get("openai_key")
-    if api_key:
-        st.session_state.client = OpenAI(api_key=api_key)
-    else:
-        st.error("OpenAI API key is not set in secrets.")
-
-if 'messages' not in st.session_state:
-    st.session_state["messages"] = [{"role": "assistant", "content": "How can I help?"}]
-
-def create_chromadb_collection(pdf_folder_path: str, collection_name: str):
+# Function to generate response using OpenAI
+def generate_response(messages):
     try:
-        # Initialize ChromaDB client
-        chroma_client = Client(api_key=st.secrets.get("chroma_key"))
-        collection = chroma_client.create_collection(name=collection_name)
-
-        # OpenAI Embeddings
-        embedding_model = "text-embedding-3-small"
-        openai_client = st.session_state.client
-
-        for filename in os.listdir(pdf_folder_path):
-            if filename.endswith(".pdf"):
-                file_path = os.path.join(pdf_folder_path, filename)
-                with open(file_path, 'rb') as file:
-                    pdf_reader = PdfFileReader(file)
-                    text = ""
-                    for page_num in range(pdf_reader.numPages):
-                        text += pdf_reader.getPage(page_num).extract_text()
-
-                    # Generate embedding for the text
-                    embedding_response = openai_client.embeddings.create(
-                        model=embedding_model,
-                        input=text
-                    )
-                    embedding = embedding_response['data'][0]['embedding']
-
-                    # Add document to collection with metadata
-                    collection.add_document(
-                        id=filename,
-                        embedding=embedding,
-                        metadata={"filename": filename, "text": text}
-                    )
-
-        st.success("ChromaDB collection created successfully!")
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=150
+        )
+        return response.choices[0].message.content
     except Exception as e:
-        st.error(f"An error occurred while creating the ChromaDB collection: {e}")
+        return f"Error: {str(e)}"
 
-# Example usage of the function
-if st.button("Create ChromaDB Collection"):
-    create_chromadb_collection("path/to/your/pdf/folder", "Lab4Collection")
+# Streamlit application
+st.title("Understanding your courses!")
 
-# Display all messages
-for msg in st.session_state.messages:
-    chat_msg = st.chat_message(msg["role"])
-    chat_msg.write(msg["content"])
+# Load PDF files
+pdf_files = st.file_uploader("Upload your PDF files", accept_multiple_files=True, type=["pdf"])
 
-# Input prompt
-if prompt := st.chat_input("What is up?"):
+# Create ChromaDB collection and embed documents if not already created
+if st.button("Create ChromaDB") and pdf_files:
+    create_chromadb_collection(pdf_files)
+
+# Initialize chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Display chat messages from history on app rerun
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# React to user input
+if prompt := st.chat_input("What questions do you have?"):
+    # Display user message in chat message container
+    st.chat_message("user").markdown(prompt)
+    # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # Maintain the buffer size
-    if len(st.session_state.messages) > buffer_size * 2:
-        st.session_state.messages = st.session_state.messages[-buffer_size * 2:]
+    context = get_relevant_context(prompt)
 
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    # Prepare messages for the LLM
+    system_message = "You are a helpful assistant that answers questions about a course based on the provided context. If the answer is not in the context, say you don't have that information."
+    user_message = f"Context: {context}\n\nQuestion: {prompt}"
 
-    client = st.session_state.client
-    stream = client.chat.completions.create(
-        model=model_to_use,
-        messages=st.session_state.messages,
-        stream=True
-    )
+    messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": user_message}
+    ]
 
+    # Generate response
+    response = generate_response(messages)
+
+    # Display assistant response in chat message container
     with st.chat_message("assistant"):
-        response = st.write_stream(stream)
-
-    # Ensure response is less than 150 words
-    response = response[:150]
+        st.markdown(response)
+    # Add assistant response to chat history
     st.session_state.messages.append({"role": "assistant", "content": response})
-
-    # Automatically ask for more information
-    more_info_question = "Want more info? (Yes/No)"
-    st.session_state.messages.append({"role": "assistant", "content": more_info_question})
-
-# Handle the user's response for more information
-if prompt and prompt.lower() in ["yes", "no"]:
-    if prompt.lower() == "yes":
-        st.session_state.messages.append({"role": "assistant", "content": "Continuing..."})
-    elif prompt.lower() == "no":
-        st.session_state.messages.append({"role": "assistant", "content": "What else?"})
