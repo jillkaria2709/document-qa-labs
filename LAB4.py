@@ -15,7 +15,7 @@ secrets_path = os.path.join(".streamlit", "secrets.toml")
 secrets = toml.load(secrets_path)
 
 # Initialize OpenAI client
-openai_client = OpenAI(api_key=secrets['openai_api_key'])
+openai_client = OpenAI(api_key=secrets['openai_key'])
 
 # Function to create ChromaDB collection
 def create_chromadb_collection(pdf_files):
