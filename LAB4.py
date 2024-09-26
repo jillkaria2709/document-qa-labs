@@ -114,5 +114,5 @@ def run():
         with st.expander(message["role"]):
             st.markdown(message["content"])
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     run()
