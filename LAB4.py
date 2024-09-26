@@ -1,14 +1,17 @@
 import streamlit as st
 from openai import OpenAI
+
+
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+
+
 import chromadb
 from chromadb.utils import embedding_functions
 from PyPDF2 import PdfReader
 import os
 import toml
-
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 # Load API keys from secrets.toml
 secrets_path = os.path.join(".streamlit", "secrets.toml")
