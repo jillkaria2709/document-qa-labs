@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 import openai
-import google_generativeai as genai  # Assuming genai is the library for Gemini
+#import google_generativeai as genai  # Assuming genai is the library for Gemini
 
 # Function to get weather from OpenWeatherMap
 def get_current_weather(location):
